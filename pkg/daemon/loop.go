@@ -23,6 +23,13 @@ var (
 	continuousLoopThreshold = 1*time.Minute + 20*time.Second // add 20s to be sure
 )
 
+// adapterMinBand is the minimum hysteresis band (upper - lower) enforced in
+// adapter mode. Cutting wall power can only hold a ceiling by discharging and
+// recharging, so a narrow band would cycle the battery and rewrite the SMC
+// often. This floor only ever widens the band (lets the battery roam a little
+// lower); it never raises the ceiling, so the limit is always respected.
+const adapterMinBand = 5
+
 // infiniteLoop runs forever and maintains the battery charge,
 // which is called by the daemon.
 func infiniteLoop() {
@@ -464,6 +471,13 @@ func maintainActiveCharging(ignoreMissedLoops bool) bool {
 
 	upper := conf.UpperLimit()
 	lower := conf.LowerLimit()
+	// Adapter mode holds the ceiling by discharging on battery and recharging,
+	// so keep a gentle minimum band to avoid frequent cycling and SMC writes.
+	if capabilities.ChargeControlMode == compatibility.ChargeControlAdapter {
+		if minLower := upper - adapterMinBand; upper < 100 && lower > minLower && minLower >= 0 {
+			lower = minLower
+		}
+	}
 	maintain := upper < 100
 
 	isChargingEnabled, err := charger.IsEnabled()
@@ -504,6 +518,15 @@ func maintainActiveCharging(ignoreMissedLoops bool) bool {
 	// If maintain is disabled, we don't care about the battery charge, enable charging anyway.
 	if !maintain {
 		return handleNoMaintain(isChargingEnabled)
+	}
+
+	// Adapter mode can only enforce the limit while on wall power. When running
+	// from the battery there is nothing to cut or restore, so leave the adapter
+	// untouched and wait for reconnection instead of writing the SMC pointlessly.
+	// The next loop after reconnection resumes enforcement.
+	if capabilities.ChargeControlMode == compatibility.ChargeControlAdapter && !isPluggedIn {
+		maintainedChargingInProgress = false
+		return true
 	}
 
 	return handleChargingLogic(ignoreMissedLoops, isChargingEnabled, isPluggedIn, batteryCharge, lower, upper)

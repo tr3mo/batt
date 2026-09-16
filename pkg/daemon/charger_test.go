@@ -179,3 +179,69 @@ func TestAdapterLoopReportsSwitchError(t *testing.T) {
 		t.Fatal("loop must fail when the charge switch errors")
 	}
 }
+
+func TestAdapterLoopSkipsWhenUnplugged(t *testing.T) {
+	useAdapterCapabilities(t)
+	file, _ := useTempConfig(t)
+	file.SetUpperLimit(50)
+	file.SetLowerLimit(48)
+	adapterMockSMC(t, 60, false, true) // 60% (above upper) but ON BATTERY, adapter "on"
+	fake := &fakeCharger{enabled: true}
+	useCharger(t, fake)
+
+	if !maintainActiveCharging(true) {
+		t.Fatal("loop returned false")
+	}
+	if fake.enables != 0 || fake.disables != 0 {
+		t.Fatalf("unplugged adapter mode must not toggle the adapter: %+v", fake)
+	}
+}
+
+func TestAdapterLoopWidensNarrowBand(t *testing.T) {
+	useAdapterCapabilities(t)
+	file, _ := useTempConfig(t)
+	file.SetUpperLimit(50)
+	file.SetLowerLimit(48) // 2% band; adapterMinBand=5 should widen the floor to 45
+
+	// At 46% (below the configured 48 but within the widened 45..50 band) the
+	// adapter must NOT be restored — proving the band was widened.
+	adapterMockSMC(t, 46, true, false)
+	fake := &fakeCharger{enabled: false}
+	useCharger(t, fake)
+	if !maintainActiveCharging(true) {
+		t.Fatal("loop returned false")
+	}
+	if fake.enables != 0 {
+		t.Fatalf("46%% is within the widened band; must not recharge yet: %+v", fake)
+	}
+
+	// At 44% (below the widened floor of 45) it must restore wall power.
+	adapterMockSMC(t, 44, true, false)
+	fake2 := &fakeCharger{enabled: false}
+	useCharger(t, fake2)
+	if !maintainActiveCharging(true) {
+		t.Fatal("loop returned false")
+	}
+	if fake2.enables != 1 {
+		t.Fatalf("44%% is below the widened floor; must recharge: %+v", fake2)
+	}
+}
+
+func TestAdapterLoopRespectsWiderUserBand(t *testing.T) {
+	useAdapterCapabilities(t)
+	file, _ := useTempConfig(t)
+	file.SetUpperLimit(50)
+	file.SetLowerLimit(38) // 12% band, wider than adapterMinBand — must be respected
+
+	// At 40% (below 45 but above the user's 38) the adapter must NOT recharge:
+	// the min-band floor only widens a too-narrow band, never narrows a wide one.
+	adapterMockSMC(t, 40, true, false)
+	fake := &fakeCharger{enabled: false}
+	useCharger(t, fake)
+	if !maintainActiveCharging(true) {
+		t.Fatal("loop returned false")
+	}
+	if fake.enables != 0 {
+		t.Fatalf("40%% is within the user's wide band; must not recharge: %+v", fake)
+	}
+}
