@@ -94,6 +94,7 @@ func Run(configPath string, unixSocketPath string, allowNonRoot bool) error {
 		return fmt.Errorf("open Apple SMC: %w", err)
 	}
 	capabilities = detectCapabilities()
+	charger = selectCharger(capabilities.ChargeControlMode)
 	logrus.WithFields(capabilityLogFields(capabilities)).Info("detected hardware capabilities")
 	disableUnsupportedConfiguredFeatures()
 
@@ -245,7 +246,7 @@ func Run(configPath string, unixSocketPath string, allowNonRoot bool) error {
 	}
 
 	if capabilities.ChargingControl {
-		if err := smcConn.ResetChargeControl(); err != nil {
+		if err := resetChargeControl(); err != nil {
 			logrus.Errorf("failed to reset charge control before exiting: %v", err)
 		}
 	}
