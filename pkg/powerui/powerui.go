@@ -81,7 +81,7 @@ func (c *Client) AvailableLimits() ([]int, error) {
 		count C.int
 		cerr  *C.char
 	)
-	if C.batt_powerui_available_limits(&raw[0], maxLimits, &count, &cerr) != 0 {
+	if C.batt_powerui_available_limits(&raw[0], maxLimits, &count, &cerr) != 0 { //nolint:gocritic // dupSubExpr false positive on cgo call
 		return nil, fmt.Errorf("get available charge limits: %w", takeError(cerr))
 	}
 	limits := make([]int, 0, int(count))
@@ -100,7 +100,7 @@ func (c *Client) Limit() (int, bool, error) {
 		limit, enabled C.int
 		cerr           *C.char
 	)
-	if C.batt_powerui_get_limit(&limit, &enabled, &cerr) != 0 {
+	if C.batt_powerui_get_limit(&limit, &enabled, &cerr) != 0 { //nolint:gocritic // dupSubExpr false positive on cgo call
 		return 0, false, fmt.Errorf("get native charge limit: %w", takeError(cerr))
 	}
 	logrus.WithFields(logrus.Fields{"limit": int(limit), "enabled": enabled == 1}).Trace("read native charge limit")
@@ -115,7 +115,7 @@ func (c *Client) SetLimit(limit int) error {
 	defer c.mu.Unlock()
 
 	var cerr *C.char
-	if C.batt_powerui_set_limit(C.int(limit), &cerr) != 0 {
+	if C.batt_powerui_set_limit(C.int(limit), &cerr) != 0 { //nolint:gocritic // dupSubExpr false positive on cgo call
 		return fmt.Errorf("set native charge limit to %d%%: %w", limit, takeError(cerr))
 	}
 	logrus.WithField("limit", limit).Trace("set native charge limit")
@@ -127,7 +127,7 @@ func (c *Client) Disable() error {
 	defer c.mu.Unlock()
 
 	var cerr *C.char
-	if C.batt_powerui_disable(&cerr) != 0 {
+	if C.batt_powerui_disable(&cerr) != 0 { //nolint:gocritic // dupSubExpr false positive on cgo call
 		return fmt.Errorf("disable native charge limit: %w", takeError(cerr))
 	}
 	logrus.Trace("disabled native charge limit")

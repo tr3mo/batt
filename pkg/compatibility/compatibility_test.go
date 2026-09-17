@@ -3,8 +3,8 @@ package compatibility
 import "testing"
 
 func TestSupportsLimit(t *testing.T) {
-	any := Capabilities{ChargingControl: true}
-	if !any.SupportsLimit(10) || !any.SupportsLimit(63) || !any.SupportsLimit(100) {
+	caps := Capabilities{ChargingControl: true}
+	if !caps.SupportsLimit(10) || !caps.SupportsLimit(63) || !caps.SupportsLimit(100) {
 		t.Fatal("empty SupportedLimits must accept any limit")
 	}
 
