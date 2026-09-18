@@ -97,7 +97,7 @@ Starting with macOS 27 Developer Beta 4 (firmware `20457.0.125.0.2`+, also shipp
 
 The macOS charge limit built into System Settings still works, but it is enforced by `powerd` behind that entitlement and only offers a fixed set of values **at or above 80%**.
 
-To keep charge limiting working, including limits **below 80%**, `batt` offers an opt-in **adapter mode**, enabled with `sudo batt install --enable-adapter-mode`. The adapter (wall-power) SMC key is not entitlement-gated, so `batt` runs the same ThinkPad-style hysteresis loop it uses in legacy mode, but toggles wall power instead of the charge state:
+To keep charge limiting working, including limits **below 80%**, `batt` offers an opt-in **adapter mode**, enabled at runtime with `sudo batt adapter-mode enable`. The adapter (wall-power) SMC key is not entitlement-gated, so `batt` runs the same ThinkPad-style hysteresis loop it uses in legacy mode, but toggles wall power instead of the charge state:
 
 - When the battery reaches the upper limit, `batt` cuts wall power (the Mac runs from the battery, even though the adapter is physically plugged in), so the charge falls.
 - When the battery drops to the lower limit, `batt` restores wall power and the Mac charges again.

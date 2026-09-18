@@ -47,6 +47,24 @@ func detectCapabilities() compatibility.Capabilities {
 	}
 }
 
+// reapplyChargeControlMode re-detects capabilities after the adapter-mode
+// setting changed, restores wall power when leaving adapter mode, and enforces
+// the new mode immediately.
+func reapplyChargeControlMode() {
+	maintainLoopInnerLock.Lock()
+	prev := capabilities.ChargeControlMode
+	capabilities = detectCapabilities()
+	charger = selectCharger(capabilities.ChargeControlMode)
+	maintainLoopInnerLock.Unlock()
+
+	if prev == compatibility.ChargeControlAdapter && capabilities.ChargeControlMode != compatibility.ChargeControlAdapter {
+		_ = smcConn.EnableAdapter()
+	}
+	logrus.WithFields(capabilityLogFields(capabilities)).Info("reapplied charge control mode")
+	disableUnsupportedConfiguredFeatures()
+	maintainLoopForced()
+}
+
 // detectNativeChargeControl falls back to the charge limit built into macOS
 // when the SMC keys are gated (macOS 27 beta 4+ firmware). It only reports the
 // native mode when PowerUIAgent supports the limit and lists usable values.

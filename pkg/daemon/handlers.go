@@ -552,6 +552,21 @@ func getChargingControlCapable(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, capabilities.ChargingControl)
 }
 
+func setAdapterMode(c *gin.Context) {
+	var enabled bool
+	if err := c.BindJSON(&enabled); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	conf.SetAdapterMode(enabled)
+	if err := conf.Save(); err != nil {
+		c.IndentedJSON(http.StatusInternalServerError, err.Error())
+		return
+	}
+	reapplyChargeControlMode()
+	c.IndentedJSON(http.StatusCreated, fmt.Sprintf("adapter mode set to %t, charge control is now %s", enabled, capabilities.ChargeControlMode))
+}
+
 func getVersion(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, version.Version)
 }

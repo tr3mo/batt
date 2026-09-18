@@ -53,6 +53,7 @@ func setupRoutes() *gin.Engine {
 	router.GET("/charging", getCharging)
 	router.GET("/battery-info", getBatteryInfo)
 	router.PUT("/magsafe-led", setControlMagSafeLED)
+	router.PUT("/adapter-mode", setAdapterMode)
 	router.GET("/current-charge", getCurrentCharge)
 	router.GET("/plugged-in", getPluggedIn)
 	router.GET("/charging-control-capable", getChargingControlCapable)
@@ -232,17 +233,14 @@ func Run(configPath string, unixSocketPath string, allowNonRoot bool) error {
 		}
 	}()
 
-	listeningForSleep := capabilities.SleepHooks
-	if listeningForSleep {
-		go func() {
-			if err := listenNotifications(); err != nil {
-				logrus.Errorf("failed to listen to system sleep notifications: %v", err)
-				os.Exit(1)
-			}
-		}()
-	} else {
-		logrus.Info("system sleep notifications are not needed for this charge-control mode")
-	}
+	// Always listen: the callbacks no-op unless batt actively controls charging,
+	// and this lets a runtime adapter-mode toggle get working sleep hooks.
+	go func() {
+		if err := listenNotifications(); err != nil {
+			logrus.Errorf("failed to listen to system sleep notifications: %v", err)
+			os.Exit(1)
+		}
+	}()
 
 	go func() {
 		logrus.Debugln("main loop starts")
@@ -268,10 +266,8 @@ func Run(configPath string, unixSocketPath string, allowNonRoot bool) error {
 	}
 	cancel()
 
-	if listeningForSleep {
-		logrus.Info("stopping listening notifications")
-		stopListeningNotifications()
-	}
+	logrus.Info("stopping listening notifications")
+	stopListeningNotifications()
 
 	if err := AllowSleepOnAC(); err != nil {
 		logrus.Errorf("failed to remove PM assertion before exiting: %v", err)

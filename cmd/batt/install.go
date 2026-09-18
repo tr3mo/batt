@@ -23,7 +23,6 @@ func init() {
 // NewInstallCommand .
 func NewInstallCommand() *cobra.Command {
 	allowNonRootAccess := false
-	enableAdapterMode := false
 
 	cmd := &cobra.Command{
 		Use:     "install",
@@ -40,7 +39,6 @@ By default, only root user is allowed to access the batt daemon for security rea
 				return err
 			}
 
-			conf.SetAdapterMode(enableAdapterMode)
 			conf.SetAllowNonRootAccess(allowNonRootAccess)
 			if allowNonRootAccess {
 				logrus.Info("non-root users are allowed to access the batt daemon.")
@@ -73,7 +71,6 @@ By default, only root user is allowed to access the batt daemon for security rea
 	}
 
 	cmd.Flags().BoolVar(&allowNonRootAccess, "allow-non-root-access", false, "Allow non-root users to access batt daemon.")
-	cmd.Flags().BoolVar(&enableAdapterMode, "enable-adapter-mode", false, "Enable adapter mode (cut wall power to hold the limit) when the SMC charge keys are gated.")
 
 	return cmd
 }
