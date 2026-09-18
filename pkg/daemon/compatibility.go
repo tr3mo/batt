@@ -17,11 +17,9 @@ func detectCapabilities() compatibility.Capabilities {
 	adapter := smcConn.IsAdapterControlCapable()
 	var supportedLimits []int
 	if mode == compatibility.ChargeControlUnsupported {
-		// The SMC charge-enable keys are gated. Prefer the adapter loop: it
-		// accepts any limit (including below 80%), where the native macOS
-		// limit only offers a fixed set at or above 80%.
+		// Adapter mode is opt-in; otherwise fall back to the native limit.
 		switch {
-		case adapter:
+		case adapter && conf.AdapterMode():
 			mode = compatibility.ChargeControlAdapter
 		default:
 			mode, supportedLimits = detectNativeChargeControl()

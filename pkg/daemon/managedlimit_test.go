@@ -125,10 +125,10 @@ func useMockSMC(t *testing.T, values ...gosmc.Value) *smc.AppleSMC {
 	return mock
 }
 
-func TestDetectCapabilitiesPrefersAdapterWhenChargeKeysGated(t *testing.T) {
+func TestDetectCapabilitiesPrefersAdapterWhenOptedIn(t *testing.T) {
 	gatedSMC(t)
-	// Even when the native limit is available, the adapter loop wins because
-	// it can enforce limits below 80%.
+	file, _ := useTempConfig(t)
+	file.SetAdapterMode(true)
 	useFakeNativeLimit(t, &fakeNativeLimit{supported: true, limits: []int{80, 90, 100}})
 
 	got := detectCapabilities()
@@ -152,8 +152,20 @@ func TestDetectCapabilitiesPrefersAdapterWhenChargeKeysGated(t *testing.T) {
 	}
 }
 
+func TestDetectCapabilitiesRequiresAdapterOptIn(t *testing.T) {
+	gatedSMC(t)
+	useTempConfig(t) // AdapterMode defaults to false
+	useFakeNativeLimit(t, &fakeNativeLimit{supported: true, limits: []int{80, 100}})
+
+	got := detectCapabilities()
+	if got.ChargeControlMode != compatibility.ChargeControlNative {
+		t.Fatalf("without opt-in, adapter must not be selected; got %s", got.ChargeControlMode)
+	}
+}
+
 func TestDetectCapabilitiesFallsBackToNativeLimit(t *testing.T) {
 	gatedSMCNoAdapter(t)
+	useTempConfig(t)
 	useFakeNativeLimit(t, &fakeNativeLimit{supported: true, limits: []int{100, 80, 90}})
 
 	got := detectCapabilities()
@@ -172,6 +184,7 @@ func TestDetectCapabilitiesFallsBackToNativeLimit(t *testing.T) {
 }
 
 func TestDetectCapabilitiesStaysUnsupportedWithoutNativeLimit(t *testing.T) {
+	useTempConfig(t)
 	for name, fake := range map[string]*fakeNativeLimit{
 		"not supported": {supported: false},
 		"limits error":  {supported: true, err: errors.New("xpc down")},
